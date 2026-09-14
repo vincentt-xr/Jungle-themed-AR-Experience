@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "platform": [
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/PreviewAnchors.tsx",
+    "src/capture.ts",
+    "src/gesture.ts",
+    "src/index.css",
+    "src/overlay.tsx",
+    "src/sprite.tsx",
+    "src/vite-env.d.ts",
+    "index.html",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.node.json",
+    "esbuild.config.mjs"
+  ],
+  "creator": [
+    "src/Scene.tsx",
+    "src/assets/Scene 1.gif",
+    "src/assets/butterfly-red.gif",
+    "src/assets/butterfly.gif",
+    "src/assets/small-bug.gif"
+  ]
+}
