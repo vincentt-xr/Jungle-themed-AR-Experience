@@ -27,11 +27,6 @@ import {
   type FaceRetouchControls,
 } from "@vincentt-xr/sdk/face-effects";
 
-import butterflyGif from "./assets/butterfly.gif";
-import butterflyRedGif from "./assets/butterfly-red.gif";
-import sceneOneGif from "./assets/Scene 1.gif";
-import smallFlyGif from "./assets/small-bug.gif";
-
 type EditorSceneStore = RenderGroupSceneObjectStore & {
   selectedObjectId: SceneObjectId;
 };
@@ -82,7 +77,7 @@ const createInitialScene = (): EditorSceneStore => {
   sceneGifTransform.settings.showTransformGuides = false;
 
   sceneGifImage.settings.image.sourceKind = "gif";
-  sceneGifImage.settings.image.src = sceneOneGif;
+  sceneGifImage.settings.image.src = "/images/scene-1.gif";
   sceneGifImage.settings.image.stretchMode = "fill";
   sceneGifImage.settings.transformation.position = { x: 0, y: 0 };
   sceneGifImage.settings.transformation.size = { width: 720, height: 1280 };
@@ -129,7 +124,7 @@ const createInitialScene = (): EditorSceneStore => {
   faceImageTransform.settings.size = { width: 300, height: 300 };
   faceImageTransform.settings.showTransformGuides = false;
   faceImageComponent.settings.image.sourceKind = "gif";
-  faceImageComponent.settings.image.src = smallFlyGif;
+  faceImageComponent.settings.image.src = "/images/small-bug.gif";
   faceImageComponent.settings.image.stretchMode = "fill";
   faceImageComponent.settings.transformation.position = { x: 0, y: 0 };
   faceImageComponent.settings.transformation.size = { width: 300, height: 300 };
@@ -157,7 +152,7 @@ const createInitialScene = (): EditorSceneStore => {
   butterflyTransform.settings.position = BUTTERFLY_HOME;
   butterflyTransform.settings.size = { width: 180, height: 180 };
   butterflyImage.settings.image.sourceKind = "gif";
-  butterflyImage.settings.image.src = butterflyGif;
+  butterflyImage.settings.image.src = "/images/butterfly.gif";
   butterflyImage.settings.image.stretchMode = "fill";
   butterflyImage.settings.transformation.position =
     butterflyTransform.settings.position;
@@ -183,7 +178,7 @@ const createInitialScene = (): EditorSceneStore => {
   butterflyRedTransform.settings.position = BUTTERFLY_RED_HOME;
   butterflyRedTransform.settings.size = { width: 180, height: 180 };
   butterflyRedImage.settings.image.sourceKind = "gif";
-  butterflyRedImage.settings.image.src = butterflyRedGif;
+  butterflyRedImage.settings.image.src = "/images/butterfly-red.gif";
   butterflyRedImage.settings.image.stretchMode = "fill";
   butterflyRedImage.settings.transformation.position =
     butterflyRedTransform.settings.position;
@@ -510,7 +505,7 @@ const DynamicFaceRetouch = () => {
   return <FaceRetouch {...controls} />;
 };
 
-export const useSceneEditor = () => {
+export const Scene = () => {
   const [scene, setScene] = useState<EditorSceneStore>(() =>
     createInitialScene(),
   );
@@ -541,26 +536,23 @@ export const useSceneEditor = () => {
     }));
   };
 
-  return {
-    canvas: (
-      <>
-        <DynamicFaceRetouch />
-        <ButterflyPathAnimator setScene={setScene} />
-        <ClapPromptAnimator setScene={setScene} />
-        <SequentialRenderPasses layers={renderPassLayers} />
-        {renderPlan.map((entry) => (
-          <SceneObjectRenderer
-            key={entry.objectId}
-            objectId={entry.objectId}
-            store={scene}
-            renderOrder={entry.renderOrder}
-            renderLayer={entry.renderLayer}
-            editorMode={false}
-            onComponentChange={replaceComponent}
-          />
-        ))}
-      </>
-    ),
-    panels: null,
-  };
+  return (
+    <>
+      <DynamicFaceRetouch />
+      <ButterflyPathAnimator setScene={setScene} />
+      <ClapPromptAnimator setScene={setScene} />
+      <SequentialRenderPasses layers={renderPassLayers} />
+      {renderPlan.map((entry) => (
+        <SceneObjectRenderer
+          key={entry.objectId}
+          objectId={entry.objectId}
+          store={scene}
+          renderOrder={entry.renderOrder}
+          renderLayer={entry.renderLayer}
+          editorMode={false}
+          onComponentChange={replaceComponent}
+        />
+      ))}
+    </>
+  );
 };
