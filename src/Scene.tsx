@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   EXTERNAL_BACKGROUND_RENDER_LAYER,
   getRenderGroupLayer,
+  RenderGroupLayer,
   SceneObjectRenderer,
+  ScreenSpaceUI,
+  ScreenText,
   SequentialRenderPasses,
   XRModel,
 } from "@vincentt-xr/sdk";
@@ -42,7 +45,6 @@ const selectOrderedComponents = createOrderedComponentsSelector();
 const BUTTERFLY_OBJECT_NAME = "Butterfly GIF";
 const BUTTERFLY_RED_OBJECT_NAME = "Butterfly Red GIF";
 const FACE_RETOUCH_OBJECT_NAME = "Face Retouch";
-const CLAP_PROMPT_OBJECT_NAME = "Clap Prompt Text";
 const BUTTERFLY_HOME = { x: -275, y: -520 };
 const BUTTERFLY_RED_HOME = { x: 275, y: 520 };
 const FLIGHT_MS = 4200;
@@ -202,40 +204,6 @@ const createInitialScene = (): EditorSceneStore => {
   faceRetouchTransform.settings.enabled = false;
   faceRetouchObject.componentIds = [faceRetouchTransform.id];
 
-  // Center prompt shown briefly on load, then dissolved by ClapPromptAnimator.
-  const clapPromptObject = createSceneObject({
-    name: CLAP_PROMPT_OBJECT_NAME,
-    renderGroupId: "2d-foreground",
-  });
-  const clapPromptTransform = createDefaultComponent(
-    "ScreenTransform",
-    clapPromptObject.id,
-  );
-  const clapPromptText = createDefaultComponent("ScreenText", clapPromptObject.id);
-
-  clapPromptTransform.settings.position = { x: 0, y: 0 };
-  clapPromptTransform.settings.size = { width: 600, height: 90 };
-  clapPromptTransform.settings.renderOrder = 1000;
-  clapPromptTransform.settings.showTransformGuides = false;
-  clapPromptText.settings.content.text = "Clap to see butterfly moving";
-  clapPromptText.settings.transformation.position =
-    clapPromptTransform.settings.position;
-  clapPromptText.settings.transformation.size = clapPromptTransform.settings.size;
-  clapPromptText.settings.transformation.renderOrder = 1000;
-  clapPromptText.settings.transformation.showTransformGuides = false;
-  clapPromptText.settings.screenTransform = clapPromptTransform.settings;
-  clapPromptText.settings.style.fontSize = 44;
-  clapPromptText.settings.style.fontWeight = "normal";
-  clapPromptText.settings.style.color = "#f8fafc";
-  clapPromptText.settings.style.opacity = 0.72;
-  clapPromptText.settings.style.background.enabled = false;
-  clapPromptText.settings.style.outlineEnabled = false;
-  clapPromptText.settings.style.shadowEnabled = true;
-  clapPromptText.settings.style.shadowLayers = [
-    { color: "#123322", blur: 18, offsetX: 0, offsetY: 0, opacity: 0.75 },
-  ];
-  clapPromptObject.componentIds = [clapPromptTransform.id, clapPromptText.id];
-
   return migrateToRenderGroups(
     {
       selectedObjectId: sceneGifObject.id,
@@ -246,7 +214,6 @@ const createInitialScene = (): EditorSceneStore => {
         [butterflyObject.id]: butterflyObject,
         [butterflyRedObject.id]: butterflyRedObject,
         [faceRetouchObject.id]: faceRetouchObject,
-        [clapPromptObject.id]: clapPromptObject,
       },
       components: {
         [sceneGifTransform.id]: sceneGifTransform,
@@ -260,8 +227,6 @@ const createInitialScene = (): EditorSceneStore => {
         [butterflyRedTransform.id]: butterflyRedTransform,
         [butterflyRedImage.id]: butterflyRedImage,
         [faceRetouchTransform.id]: faceRetouchTransform,
-        [clapPromptTransform.id]: clapPromptTransform,
-        [clapPromptText.id]: clapPromptText,
       },
     } satisfies SceneObjectStore & { selectedObjectId: SceneObjectId },
     [
@@ -271,7 +236,6 @@ const createInitialScene = (): EditorSceneStore => {
       butterflyObject.id,
       butterflyRedObject.id,
       faceRetouchObject.id,
-      clapPromptObject.id,
     ],
   );
 };
@@ -421,51 +385,71 @@ const ButterflyPathAnimator = ({
   return null;
 };
 
-const ClapPromptAnimator = ({
-  setScene,
-}: {
-  setScene: (updater: (current: EditorSceneStore) => EditorSceneStore) => void;
-}) => {
+/**
+ * Center prompt shown briefly on load, then faded out. Its `text` is a literal so
+ * the console's visual editor can retype it; the GIFs stay in the scene store
+ * because the editor cannot swap an animated GIF (it needs a `source` prop).
+ * It draws on the 2D group's layer, above the GIFs, as when it lived in the store.
+ */
+const ClapPrompt = ({ layer }: { layer: number }) => {
+  const [opacity, setOpacity] = useState(0.72);
+
   useFrame(({ clock }) => {
     const elapsedMs = clock.elapsedTime * 1000;
     const fadeProgress = Math.max(
       0,
       Math.min((elapsedMs - PROMPT_VISIBLE_MS) / PROMPT_FADE_MS, 1),
     );
-    const opacity = 0.72 * (1 - fadeProgress);
-
-    setScene((current: EditorSceneStore) => {
-      const object = (Object.values(current.objects) as SceneObject[]).find(
-        (entry) => entry.name === CLAP_PROMPT_OBJECT_NAME,
-      );
-      if (!object) return current;
-
-      const text = selectOrderedComponents(current, object.id).find(
-        (component: SceneComponent) => component.type === "ScreenText",
-      );
-      if (!isComponent(text, "ScreenText")) return current;
-
-      return {
-        ...current,
-        objects: {
-          ...current.objects,
-          [object.id]: { ...object, enabled: opacity > 0 },
-        },
-        components: {
-          ...current.components,
-          [text.id]: {
-            ...text,
-            settings: {
-              ...text.settings,
-              style: { ...text.settings.style, opacity },
-            },
-          },
-        },
-      };
-    });
+    setOpacity(0.72 * (1 - fadeProgress));
   });
 
-  return null;
+  return (
+    <RenderGroupLayer layer={layer}>
+      <ScreenSpaceUI>
+        <ScreenText
+          name="Clap Prompt Text"
+          text="Clap to see butterfly moving"
+          screenTransform={{
+            enabled: true,
+            position: { x: 0, y: 0 },
+            size: { width: 600, height: 90 },
+            pivot: [0.5, 0.5],
+            rotation: 0,
+            scale2D: { x: 1, y: 1 },
+            referencePixelsPerUnit: 32,
+            renderOrder: 1000,
+            overlay: true,
+            visible: true,
+            showTransformGuides: false,
+          }}
+          renderOrder={1000}
+          overlay
+          fontSize={44}
+          fontFamily='"Space Grotesk", sans-serif'
+          fontWeight="normal"
+          fontStyle="normal"
+          letterSpacing={0}
+          lineSpacing={0.3}
+          color="#f8fafc"
+          opacity={opacity}
+          outlineEnabled={false}
+          shadowEnabled
+          shadowLayers={[
+            { color: "#123322", blur: 18, offsetX: 0, offsetY: 0, opacity: 0.75 },
+          ]}
+          bgColor="transparent"
+          padding={0}
+          borderWidth={0}
+          textAlign="center"
+          verticalAlign="center"
+          overflow="clip"
+          resizeToFit={false}
+          minFontSize={32}
+          visible={opacity > 0}
+        />
+      </ScreenSpaceUI>
+    </RenderGroupLayer>
+  );
 };
 
 const DynamicFaceRetouch = () => {
@@ -540,7 +524,6 @@ export const Scene = () => {
     <>
       <DynamicFaceRetouch />
       <ButterflyPathAnimator setScene={setScene} />
-      <ClapPromptAnimator setScene={setScene} />
       <SequentialRenderPasses layers={renderPassLayers} />
       {renderPlan.map((entry) => (
         <SceneObjectRenderer
@@ -553,6 +536,9 @@ export const Scene = () => {
           onComponentChange={replaceComponent}
         />
       ))}
+      <ClapPrompt
+        layer={getRenderGroupLayer(scene.renderGroupOrder.indexOf("2d-foreground"))}
+      />
     </>
   );
 };
