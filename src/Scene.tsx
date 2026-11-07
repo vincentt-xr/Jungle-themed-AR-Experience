@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   EXTERNAL_BACKGROUND_RENDER_LAYER,
   getRenderGroupLayer,
+  RenderGroupLayer,
   SceneObjectRenderer,
+  ScreenSpaceUI,
+  ScreenText,
   SequentialRenderPasses,
   XRModel,
 } from "@vincentt-xr/sdk";
@@ -27,11 +30,6 @@ import {
   type FaceRetouchControls,
 } from "@vincentt-xr/sdk/face-effects";
 
-import butterflyGif from "./assets/butterfly.gif";
-import butterflyRedGif from "./assets/butterfly-red.gif";
-import sceneOneGif from "./assets/Scene 1.gif";
-import smallFlyGif from "./assets/small-bug.gif";
-
 type EditorSceneStore = RenderGroupSceneObjectStore & {
   selectedObjectId: SceneObjectId;
 };
@@ -47,7 +45,6 @@ const selectOrderedComponents = createOrderedComponentsSelector();
 const BUTTERFLY_OBJECT_NAME = "Butterfly GIF";
 const BUTTERFLY_RED_OBJECT_NAME = "Butterfly Red GIF";
 const FACE_RETOUCH_OBJECT_NAME = "Face Retouch";
-const CLAP_PROMPT_OBJECT_NAME = "Clap Prompt Text";
 const BUTTERFLY_HOME = { x: -275, y: -520 };
 const BUTTERFLY_RED_HOME = { x: 275, y: 520 };
 const FLIGHT_MS = 4200;
@@ -82,7 +79,7 @@ const createInitialScene = (): EditorSceneStore => {
   sceneGifTransform.settings.showTransformGuides = false;
 
   sceneGifImage.settings.image.sourceKind = "gif";
-  sceneGifImage.settings.image.src = sceneOneGif;
+  sceneGifImage.settings.image.src = "/images/scene-1.gif";
   sceneGifImage.settings.image.stretchMode = "fill";
   sceneGifImage.settings.transformation.position = { x: 0, y: 0 };
   sceneGifImage.settings.transformation.size = { width: 720, height: 1280 };
@@ -129,7 +126,7 @@ const createInitialScene = (): EditorSceneStore => {
   faceImageTransform.settings.size = { width: 300, height: 300 };
   faceImageTransform.settings.showTransformGuides = false;
   faceImageComponent.settings.image.sourceKind = "gif";
-  faceImageComponent.settings.image.src = smallFlyGif;
+  faceImageComponent.settings.image.src = "/images/small-bug.gif";
   faceImageComponent.settings.image.stretchMode = "fill";
   faceImageComponent.settings.transformation.position = { x: 0, y: 0 };
   faceImageComponent.settings.transformation.size = { width: 300, height: 300 };
@@ -157,7 +154,7 @@ const createInitialScene = (): EditorSceneStore => {
   butterflyTransform.settings.position = BUTTERFLY_HOME;
   butterflyTransform.settings.size = { width: 180, height: 180 };
   butterflyImage.settings.image.sourceKind = "gif";
-  butterflyImage.settings.image.src = butterflyGif;
+  butterflyImage.settings.image.src = "/images/butterfly.gif";
   butterflyImage.settings.image.stretchMode = "fill";
   butterflyImage.settings.transformation.position =
     butterflyTransform.settings.position;
@@ -183,7 +180,7 @@ const createInitialScene = (): EditorSceneStore => {
   butterflyRedTransform.settings.position = BUTTERFLY_RED_HOME;
   butterflyRedTransform.settings.size = { width: 180, height: 180 };
   butterflyRedImage.settings.image.sourceKind = "gif";
-  butterflyRedImage.settings.image.src = butterflyRedGif;
+  butterflyRedImage.settings.image.src = "/images/butterfly-red.gif";
   butterflyRedImage.settings.image.stretchMode = "fill";
   butterflyRedImage.settings.transformation.position =
     butterflyRedTransform.settings.position;
@@ -207,40 +204,6 @@ const createInitialScene = (): EditorSceneStore => {
   faceRetouchTransform.settings.enabled = false;
   faceRetouchObject.componentIds = [faceRetouchTransform.id];
 
-  // Center prompt shown briefly on load, then dissolved by ClapPromptAnimator.
-  const clapPromptObject = createSceneObject({
-    name: CLAP_PROMPT_OBJECT_NAME,
-    renderGroupId: "2d-foreground",
-  });
-  const clapPromptTransform = createDefaultComponent(
-    "ScreenTransform",
-    clapPromptObject.id,
-  );
-  const clapPromptText = createDefaultComponent("ScreenText", clapPromptObject.id);
-
-  clapPromptTransform.settings.position = { x: 0, y: 0 };
-  clapPromptTransform.settings.size = { width: 600, height: 90 };
-  clapPromptTransform.settings.renderOrder = 1000;
-  clapPromptTransform.settings.showTransformGuides = false;
-  clapPromptText.settings.content.text = "Clap to see butterfly moving";
-  clapPromptText.settings.transformation.position =
-    clapPromptTransform.settings.position;
-  clapPromptText.settings.transformation.size = clapPromptTransform.settings.size;
-  clapPromptText.settings.transformation.renderOrder = 1000;
-  clapPromptText.settings.transformation.showTransformGuides = false;
-  clapPromptText.settings.screenTransform = clapPromptTransform.settings;
-  clapPromptText.settings.style.fontSize = 44;
-  clapPromptText.settings.style.fontWeight = "normal";
-  clapPromptText.settings.style.color = "#f8fafc";
-  clapPromptText.settings.style.opacity = 0.72;
-  clapPromptText.settings.style.background.enabled = false;
-  clapPromptText.settings.style.outlineEnabled = false;
-  clapPromptText.settings.style.shadowEnabled = true;
-  clapPromptText.settings.style.shadowLayers = [
-    { color: "#123322", blur: 18, offsetX: 0, offsetY: 0, opacity: 0.75 },
-  ];
-  clapPromptObject.componentIds = [clapPromptTransform.id, clapPromptText.id];
-
   return migrateToRenderGroups(
     {
       selectedObjectId: sceneGifObject.id,
@@ -251,7 +214,6 @@ const createInitialScene = (): EditorSceneStore => {
         [butterflyObject.id]: butterflyObject,
         [butterflyRedObject.id]: butterflyRedObject,
         [faceRetouchObject.id]: faceRetouchObject,
-        [clapPromptObject.id]: clapPromptObject,
       },
       components: {
         [sceneGifTransform.id]: sceneGifTransform,
@@ -265,8 +227,6 @@ const createInitialScene = (): EditorSceneStore => {
         [butterflyRedTransform.id]: butterflyRedTransform,
         [butterflyRedImage.id]: butterflyRedImage,
         [faceRetouchTransform.id]: faceRetouchTransform,
-        [clapPromptTransform.id]: clapPromptTransform,
-        [clapPromptText.id]: clapPromptText,
       },
     } satisfies SceneObjectStore & { selectedObjectId: SceneObjectId },
     [
@@ -276,7 +236,6 @@ const createInitialScene = (): EditorSceneStore => {
       butterflyObject.id,
       butterflyRedObject.id,
       faceRetouchObject.id,
-      clapPromptObject.id,
     ],
   );
 };
@@ -426,51 +385,71 @@ const ButterflyPathAnimator = ({
   return null;
 };
 
-const ClapPromptAnimator = ({
-  setScene,
-}: {
-  setScene: (updater: (current: EditorSceneStore) => EditorSceneStore) => void;
-}) => {
+/**
+ * Center prompt shown briefly on load, then faded out. Its `text` is a literal so
+ * the console's visual editor can retype it; the GIFs stay in the scene store
+ * because the editor cannot swap an animated GIF (it needs a `source` prop).
+ * It draws on the 2D group's layer, above the GIFs, as when it lived in the store.
+ */
+const ClapPrompt = ({ layer }: { layer: number }) => {
+  const [opacity, setOpacity] = useState(0.72);
+
   useFrame(({ clock }) => {
     const elapsedMs = clock.elapsedTime * 1000;
     const fadeProgress = Math.max(
       0,
       Math.min((elapsedMs - PROMPT_VISIBLE_MS) / PROMPT_FADE_MS, 1),
     );
-    const opacity = 0.72 * (1 - fadeProgress);
-
-    setScene((current: EditorSceneStore) => {
-      const object = (Object.values(current.objects) as SceneObject[]).find(
-        (entry) => entry.name === CLAP_PROMPT_OBJECT_NAME,
-      );
-      if (!object) return current;
-
-      const text = selectOrderedComponents(current, object.id).find(
-        (component: SceneComponent) => component.type === "ScreenText",
-      );
-      if (!isComponent(text, "ScreenText")) return current;
-
-      return {
-        ...current,
-        objects: {
-          ...current.objects,
-          [object.id]: { ...object, enabled: opacity > 0 },
-        },
-        components: {
-          ...current.components,
-          [text.id]: {
-            ...text,
-            settings: {
-              ...text.settings,
-              style: { ...text.settings.style, opacity },
-            },
-          },
-        },
-      };
-    });
+    setOpacity(0.72 * (1 - fadeProgress));
   });
 
-  return null;
+  return (
+    <RenderGroupLayer layer={layer}>
+      <ScreenSpaceUI>
+        <ScreenText
+          name="Clap Prompt Text"
+          text="Clap to see butterfly moving"
+          screenTransform={{
+            enabled: true,
+            position: { x: 0, y: 0 },
+            size: { width: 600, height: 90 },
+            pivot: [0.5, 0.5],
+            rotation: 0,
+            scale2D: { x: 1, y: 1 },
+            referencePixelsPerUnit: 32,
+            renderOrder: 1000,
+            overlay: true,
+            visible: true,
+            showTransformGuides: false,
+          }}
+          renderOrder={1000}
+          overlay
+          fontSize={44}
+          fontFamily='"Space Grotesk", sans-serif'
+          fontWeight="normal"
+          fontStyle="normal"
+          letterSpacing={0}
+          lineSpacing={0.3}
+          color="#f8fafc"
+          opacity={opacity}
+          outlineEnabled={false}
+          shadowEnabled
+          shadowLayers={[
+            { color: "#123322", blur: 18, offsetX: 0, offsetY: 0, opacity: 0.75 },
+          ]}
+          bgColor="transparent"
+          padding={0}
+          borderWidth={0}
+          textAlign="center"
+          verticalAlign="center"
+          overflow="clip"
+          resizeToFit={false}
+          minFontSize={32}
+          visible={opacity > 0}
+        />
+      </ScreenSpaceUI>
+    </RenderGroupLayer>
+  );
 };
 
 const DynamicFaceRetouch = () => {
@@ -510,7 +489,7 @@ const DynamicFaceRetouch = () => {
   return <FaceRetouch {...controls} />;
 };
 
-export const useSceneEditor = () => {
+export const Scene = () => {
   const [scene, setScene] = useState<EditorSceneStore>(() =>
     createInitialScene(),
   );
@@ -541,26 +520,25 @@ export const useSceneEditor = () => {
     }));
   };
 
-  return {
-    canvas: (
-      <>
-        <DynamicFaceRetouch />
-        <ButterflyPathAnimator setScene={setScene} />
-        <ClapPromptAnimator setScene={setScene} />
-        <SequentialRenderPasses layers={renderPassLayers} />
-        {renderPlan.map((entry) => (
-          <SceneObjectRenderer
-            key={entry.objectId}
-            objectId={entry.objectId}
-            store={scene}
-            renderOrder={entry.renderOrder}
-            renderLayer={entry.renderLayer}
-            editorMode={false}
-            onComponentChange={replaceComponent}
-          />
-        ))}
-      </>
-    ),
-    panels: null,
-  };
+  return (
+    <>
+      <DynamicFaceRetouch />
+      <ButterflyPathAnimator setScene={setScene} />
+      <SequentialRenderPasses layers={renderPassLayers} />
+      {renderPlan.map((entry) => (
+        <SceneObjectRenderer
+          key={entry.objectId}
+          objectId={entry.objectId}
+          store={scene}
+          renderOrder={entry.renderOrder}
+          renderLayer={entry.renderLayer}
+          editorMode={false}
+          onComponentChange={replaceComponent}
+        />
+      ))}
+      <ClapPrompt
+        layer={getRenderGroupLayer(scene.renderGroupOrder.indexOf("2d-foreground"))}
+      />
+    </>
+  );
 };
